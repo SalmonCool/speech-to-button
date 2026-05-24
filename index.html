@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speech to Button</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #2a2a2a;
+      background-image: radial-gradient(circle, #555 1px, transparent 1px);
+      background-size: 30px 30px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      -webkit-app-region: drag;
+      z-index: 100;
+    }
+
+    .toolbar-left {
+      display: flex;
+      gap: 10px;
+      -webkit-app-region: no-drag;
+    }
+
+    .toolbar-right {
+      display: flex;
+      gap: 10px;
+      -webkit-app-region: no-drag;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s ease;
+    }
+
+    .icon-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .tool-btn {
+      background-color: #444;
+    }
+
+    .tool-btn:hover {
+      background-color: #555;
+    }
+
+    .tool-btn svg {
+      fill: #fff;
+    }
+
+    .close-btn {
+      background-color: #c0392b;
+    }
+
+    .close-btn:hover {
+      background-color: #e74c3c;
+    }
+
+    .close-btn svg {
+      stroke: #fff;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    /* Mic node boxes */
+    .mic-node {
+      position: absolute;
+      width: 120px;
+      background-color: #8b2020;
+      border: 2px solid #a33;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 10px 10px;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .mic-node:active {
+      cursor: grabbing;
+    }
+
+    .mic-node-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .mic-node-btn.up {
+      background-color: #555;
+    }
+
+    .mic-node-btn.down {
+      background-color: #27ae60;
+      transform: scale(0.93);
+      border-color: #2ecc71;
+    }
+
+    .mic-node-btn svg {
+      width: 24px;
+      height: 24px;
+      fill: #fff;
+    }
+
+    .mic-node-word {
+      margin-top: 8px;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      color: #fff;
+      font-size: 12px;
+      text-align: center;
+      padding: 4px 6px;
+      outline: none;
+    }
+
+    .mic-node-word::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Output port on mic nodes */
+    .output-port {
+      position: absolute;
+      right: -7px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      cursor: crosshair;
+      border: 2px solid #ccc;
+      transition: background-color 0.15s;
+      z-index: 10;
+    }
+
+    .output-port:hover {
+      background: #5dff7e;
+      border-color: #fff;
+    }
+
+    /* Button press node boxes */
+    .btn-node {
+      position: absolute;
+      width: 120px;
+      background-color: #1a3a6b;
+      border: 2px solid #2a5aaa;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 10px 10px;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .btn-node:active {
+      cursor: grabbing;
+    }
+
+    .btn-node-toggle {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-node-toggle.up {
+      background-color: #555;
+    }
+
+    .btn-node-toggle.down {
+      background-color: #27ae60;
+      transform: scale(0.93);
+      border-color: #2ecc71;
+    }
+
+    .btn-node-toggle svg {
+      width: 24px;
+      height: 24px;
+      fill: #fff;
+      stroke: #fff;
+    }
+
+    .btn-node-key {
+      margin-top: 8px;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      color: #fff;
+      font-size: 12px;
+      text-align: center;
+      padding: 4px 6px;
+      outline: none;
+    }
+
+    .btn-node-key::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Connection lines SVG overlay */
+    #connections-svg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    #connections-svg line {
+      stroke: #fff;
+      stroke-width: 2;
+    }
+
+    #connections-svg .dragging-line {
+      stroke: rgba(255, 255, 255, 0.5);
+      stroke-width: 2;
+      stroke-dasharray: 6 4;
+    }
+
+    .btn-node.drop-highlight {
+      border-color: #5dff7e;
+      box-shadow: 0 0 12px rgba(93, 255, 126, 0.4);
+    }
+
+    /* Node delete button */
+    .node-delete {
+      position: absolute;
+      top: -6px;
+      left: -6px;
+      width: 16px;
+      height: 16px;
+      background: #c0392b;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      z-index: 11;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .node-delete svg {
+      width: 10px;
+      height: 10px;
+      stroke: #fff;
+      stroke-width: 2.5;
+      fill: none;
+    }
+
+    .mic-node:hover .node-delete,
+    .btn-node:hover .node-delete {
+      opacity: 1;
+    }
+
+    .node-delete:hover {
+      background: #e74c3c;
+    }
+
+    /* Debug panel */
+    .debug-tab {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 30px;
+      background-color: #1e1e1e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 200;
+      transition: opacity 0.3s;
+    }
+
+    .debug-tab:hover {
+      background-color: #252525;
+    }
+
+    .debug-tab svg {
+      width: 16px;
+      height: 16px;
+      fill: #888;
+    }
+
+    .debug-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 25vh;
+      background-color: #1e1e1e;
+      border-top: 2px solid #333;
+      z-index: 199;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+    }
+
+    .debug-panel.open {
+      transform: translateY(0);
+    }
+
+    .debug-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 30px;
+      min-height: 30px;
+      cursor: pointer;
+      background-color: #1e1e1e;
+      border-bottom: 1px solid #333;
+    }
+
+    .debug-panel-header:hover {
+      background-color: #252525;
+    }
+
+    .debug-panel-header svg {
+      width: 16px;
+      height: 16px;
+      fill: #888;
+    }
+
+    .debug-panel-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .keyboard-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 8px 12px;
+      overflow: hidden;
+      border-right: 1px solid #333;
+    }
+
+    .vosk-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px 14px;
+      overflow: hidden;
+    }
+
+    .vosk-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .vosk-title span {
+      color: #ccc;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .vosk-status {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .vosk-label {
+      color: #888;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .vosk-select {
+      width: 100%;
+      background: #333;
+      border: 1px solid #555;
+      border-radius: 4px;
+      color: #ccc;
+      font-size: 11px;
+      padding: 4px 6px;
+      outline: none;
+      margin-bottom: 10px;
+    }
+
+    .vosk-select:focus {
+      border-color: #777;
+    }
+
+    .vosk-transcript {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 6px 8px;
+      color: #aaa;
+      font-size: 11px;
+      font-family: monospace;
+      overflow-y: auto;
+      word-wrap: break-word;
+    }
+
+    /* Save modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+    }
+
+    .modal-overlay.hidden {
+      display: none;
+    }
+
+    .modal-box {
+      background: #333;
+      border: 1px solid #555;
+      border-radius: 10px;
+      padding: 24px;
+      width: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal-box h3 {
+      color: #ccc;
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .modal-input {
+      width: 100%;
+      background: #222;
+      border: 1px solid #555;
+      border-radius: 5px;
+      color: #fff;
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+    }
+
+    .modal-input:focus {
+      border-color: #777;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .modal-btn {
+      padding: 6px 18px;
+      border: none;
+      border-radius: 5px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .modal-btn-save {
+      background: #27ae60;
+      color: #fff;
+    }
+
+    .modal-btn-save:hover {
+      background: #2ecc71;
+    }
+
+    .modal-btn-cancel {
+      background: #555;
+      color: #ccc;
+    }
+
+    .modal-btn-cancel:hover {
+      background: #666;
+    }
+
+    .kb-row {
+      display: flex;
+      gap: 3px;
+      justify-content: center;
+    }
+
+    .kb-key {
+      min-width: 32px;
+      height: 28px;
+      background-color: #333;
+      border: 1px solid #555;
+      border-radius: 4px;
+      color: #ccc;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      transition: background-color 0.1s;
+      user-select: none;
+    }
+
+    .kb-key.active {
+      background-color: #27ae60 !important;
+      border-color: #2ecc71;
+      color: #fff;
+    }
+
+    .kb-key.space {
+      min-width: 200px;
+    }
+
+    .kb-key.wide {
+      min-width: 48px;
+    }
+
+    .kb-key.wider {
+      min-width: 64px;
+    }
+
+    .kb-key.widest {
+      min-width: 80px;
+    }
+  </style>
+</head>
+<body>
+  <svg id="connections-svg"></svg>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <!-- Microphone -->
+      <button class="icon-btn tool-btn" title="Microphone" id="mic-toolbar-btn">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/>
+          <path d="M6 11a6 6 0 0 0 12 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+          <line x1="12" y1="17" x2="12" y2="21" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+          <line x1="9" y1="21" x2="15" y2="21" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+
+      <!-- Button press (down arrow) -->
+      <button class="icon-btn tool-btn" title="Button Press" id="btn-toolbar-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <polyline points="19,12 12,19 5,12"/>
+        </svg>
+      </button>
+
+      <!-- Save -->
+      <button class="icon-btn tool-btn" title="Save" id="save-toolbar-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17,21 17,13 7,13 7,21"/>
+          <polyline points="7,3 7,8 15,8"/>
+        </svg>
+      </button>
+
+      <!-- Load -->
+      <button class="icon-btn tool-btn" title="Load" id="load-toolbar-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7,10 12,15 17,10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="toolbar-right">
+      <!-- Fullscreen -->
+      <button class="icon-btn tool-btn" title="Fullscreen" id="fullscreen-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
+          <polyline points="4,4 9,4 4,4 4,9"/>
+          <polyline points="20,4 15,4 20,4 20,9"/>
+          <polyline points="4,20 9,20 4,20 4,15"/>
+          <polyline points="20,20 15,20 20,20 20,15"/>
+        </svg>
+      </button>
+
+      <!-- Close -->
+      <button class="icon-btn close-btn" title="Close" id="close-btn">
+        <svg viewBox="0 0 24 24">
+          <line x1="6" y1="6" x2="18" y2="18"/>
+          <line x1="18" y1="6" x2="6" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Save modal -->
+  <div class="modal-overlay hidden" id="save-modal">
+    <div class="modal-box">
+      <h3>Save Configuration</h3>
+      <input type="text" class="modal-input" id="save-name-input" placeholder="Enter file name">
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" id="save-cancel-btn">Cancel</button>
+        <button class="modal-btn modal-btn-save" id="save-confirm-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="workspace"></div>
+
+  <!-- Debug tab (collapsed) -->
+  <div class="debug-tab" id="debug-tab">
+    <svg viewBox="0 0 24 24">
+      <path d="M2 19h4l1-3h10l1 3h4l-3-8h-2l1-3h-2l-1-2a3 3 0 0 0-6 0l-1 2H6l1 3H5z"/>
+    </svg>
+  </div>
+
+  <!-- Debug panel (expanded) -->
+  <div class="debug-panel" id="debug-panel">
+    <div class="debug-panel-header" id="debug-panel-header">
+      <svg viewBox="0 0 24 24">
+        <path d="M2 19h4l1-3h10l1 3h4l-3-8h-2l1-3h-2l-1-2a3 3 0 0 0-6 0l-1 2H6l1 3H5z"/>
+      </svg>
+    </div>
+    <div class="debug-panel-body">
+      <div class="keyboard-container" id="keyboard-container"></div>
+      <div class="vosk-panel">
+        <div class="vosk-title">
+          <span>Vosk Speech Recognition</span>
+          <svg class="vosk-status" id="vosk-status" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20,6 9,17 4,12"/>
+          </svg>
+        </div>
+        <div class="vosk-label">Audio Input Device</div>
+        <select class="vosk-select" id="vosk-audio-select">
+          <option value="">-- No devices --</option>
+        </select>
+        <div class="vosk-label">Active Transcript</div>
+        <div class="vosk-transcript" id="vosk-transcript"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./node_modules/vosk-browser/dist/vosk.js"></script>
+  <script>
+    // --- Vosk speech recognition setup ---
+    let voskModel = null;
+    let voskModelLoading = false;
+    const micNodes = []; // track mic nodes for word matching
+    let selectedAudioDeviceId = "";
+    const transcriptLines = [];
+    const MAX_TRANSCRIPT_LINES = 30;
+
+    function updateVoskStatus(loaded) {
+      const el = document.getElementById("vosk-status");
+      el.setAttribute("stroke", loaded ? "#27ae60" : "#c0392b");
+    }
+
+    function appendTranscript(text) {
+      if (!text.trim()) return;
+      transcriptLines.push(text.trim());
+      if (transcriptLines.length > MAX_TRANSCRIPT_LINES) {
+        transcriptLines.shift();
+      }
+      const el = document.getElementById("vosk-transcript");
+      el.textContent = transcriptLines.join("\n");
+      el.scrollTop = el.scrollHeight;
+    }
+
+    async function populateAudioDevices() {
+      const select = document.getElementById("vosk-audio-select");
+      try {
+        // Need a brief getUserMedia call to get permission for enumerateDevices labels
+        const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        tempStream.getTracks().forEach(t => t.stop());
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(d => d.kind === "audioinput");
+        select.innerHTML = "";
+        for (const device of audioInputs) {
+          const opt = document.createElement("option");
+          opt.value = device.deviceId;
+          opt.textContent = device.label || ("Microphone " + (select.options.length + 1));
+          select.appendChild(opt);
+        }
+        if (audioInputs.length > 0) {
+          selectedAudioDeviceId = audioInputs[0].deviceId;
+          select.value = selectedAudioDeviceId;
+        }
+      } catch (e) {
+        console.error("Could not enumerate audio devices:", e);
+        select.innerHTML = '<option value="">-- Permission denied --</option>';
+      }
+    }
+
+    document.getElementById("vosk-audio-select").addEventListener("change", (e) => {
+      selectedAudioDeviceId = e.target.value;
+    });
+
+    // Populate devices on load
+    populateAudioDevices();
+
+    async function ensureVoskModel() {
+      if (voskModel) return voskModel;
+      if (voskModelLoading) {
+        while (!voskModel) await new Promise(r => setTimeout(r, 100));
+        return voskModel;
+      }
+      voskModelLoading = true;
+      console.log("Loading Vosk model...");
+      appendTranscript("[Loading Vosk model...]");
+      try {
+        const modelUrl = await window.electronAPI.getModelUrl();
+        console.log("Fetching model from:", modelUrl);
+        voskModel = await Vosk.createModel(modelUrl);
+        console.log("Vosk model loaded.");
+        appendTranscript("[Vosk model loaded]");
+        updateVoskStatus(true);
+      } catch (e) {
+        console.error("Vosk model load failed:", e);
+        appendTranscript("[ERROR: Model load failed - " + e.message + "]");
+        voskModelLoading = false;
+        throw e;
+      }
+      return voskModel;
+    }
+
+    async function startListening(micNodeData) {
+      const model = await ensureVoskModel();
+      const recognizer = new model.KaldiRecognizer(16000);
+      recognizer.setWords(true);
+      micNodeData.recognizer = recognizer;
+
+      // Track whether this word was already fired (reset on each final result)
+      let firedOnPartial = false;
+
+      recognizer.on("result", (message) => {
+        const text = message.result.text.toLowerCase().trim();
+        if (!text) return;
+        appendTranscript(text);
+        // Only fire on final result if we didn't already fire on partial
+        const triggerWord = micNodeData.wordInput.value.toLowerCase().trim();
+        if (triggerWord && !firedOnPartial && text.includes(triggerWord)) {
+          fireConnectedButtons(micNodeData.node);
+        }
+        firedOnPartial = false;
+      });
+
+      recognizer.on("partialresult", (message) => {
+        const partial = message.result.partial.toLowerCase().trim();
+        if (!partial) return;
+        const triggerWord = micNodeData.wordInput.value.toLowerCase().trim();
+        if (triggerWord && !firedOnPartial && partial.includes(triggerWord)) {
+          firedOnPartial = true;
+          fireConnectedButtons(micNodeData.node);
+        }
+      });
+
+      // Get microphone audio using selected device
+      const audioConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 16000,
+      };
+      if (selectedAudioDeviceId) {
+        audioConstraints.deviceId = { exact: selectedAudioDeviceId };
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      micNodeData.stream = stream;
+
+      const audioContext = new AudioContext({ sampleRate: 16000 });
+      micNodeData.audioContext = audioContext;
+      const source = audioContext.createMediaStreamSource(stream);
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+      processor.onaudioprocess = (e) => {
+        if (micNodeData.recognizer) {
+          const data = e.inputBuffer.getChannelData(0);
+          recognizer.acceptWaveformFloat(data, 16000);
+        }
+      };
+
+      source.connect(processor);
+      processor.connect(audioContext.destination);
+      micNodeData.processor = processor;
+      micNodeData.source = source;
+    }
+
+    function stopListening(micNodeData) {
+      if (micNodeData.processor) {
+        micNodeData.processor.disconnect();
+        micNodeData.processor = null;
+      }
+      if (micNodeData.source) {
+        micNodeData.source.disconnect();
+        micNodeData.source = null;
+      }
+      if (micNodeData.audioContext) {
+        micNodeData.audioContext.close();
+        micNodeData.audioContext = null;
+      }
+      if (micNodeData.stream) {
+        micNodeData.stream.getTracks().forEach(t => t.stop());
+        micNodeData.stream = null;
+      }
+      if (micNodeData.recognizer) {
+        micNodeData.recognizer.remove();
+        micNodeData.recognizer = null;
+      }
+    }
+
+    function fireConnectedButtons(micNode) {
+      for (const conn of connections) {
+        if (conn.micNode === micNode) {
+          // Only fire if the blue node is activated (toggle is down/green)
+          const toggle = conn.btnNode.querySelector(".btn-node-toggle");
+          if (!toggle || !toggle.classList.contains("down")) continue;
+
+          // Get the key from the text input
+          const keyInput = conn.btnNode.querySelector(".btn-node-key");
+          const key = keyInput ? keyInput.value.trim().toLowerCase() : "";
+          if (!key) continue;
+
+          // Send the key press via main process
+          window.electronAPI.pressKey(key);
+
+          // Visual flash on the button node border
+          conn.btnNode.style.borderColor = "#2ecc71";
+          conn.btnNode.style.boxShadow = "0 0 12px rgba(46, 204, 113, 0.5)";
+          setTimeout(() => {
+            conn.btnNode.style.borderColor = "#2a5aaa";
+            conn.btnNode.style.boxShadow = "none";
+          }, 300);
+        }
+      }
+    }
+
+    const micSvg = `<svg viewBox="0 0 24 24">
+      <path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/>
+      <path d="M6 11a6 6 0 0 0 12 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      <line x1="12" y1="17" x2="12" y2="21" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      <line x1="9" y1="21" x2="15" y2="21" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    </svg>`;
+
+    const btnSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <polyline points="19,12 12,19 5,12"/>
+    </svg>`;
+
+    const deleteSvg = `<svg viewBox="0 0 24 24">
+      <line x1="6" y1="6" x2="18" y2="18"/>
+      <line x1="18" y1="6" x2="6" y2="18"/>
+    </svg>`;
+
+    function removeConnectionsFor(node) {
+      for (let i = connections.length - 1; i >= 0; i--) {
+        if (connections[i].micNode === node || connections[i].btnNode === node) {
+          connections[i].line.remove();
+          connections.splice(i, 1);
+        }
+      }
+    }
+
+    function createDeleteBtn(node, isBtnNode) {
+      const del = document.createElement("button");
+      del.className = "node-delete";
+      del.innerHTML = deleteSvg;
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeConnectionsFor(node);
+        if (isBtnNode) {
+          const idx = btnNodes.indexOf(node);
+          if (idx !== -1) btnNodes.splice(idx, 1);
+        }
+        node.remove();
+      });
+      del.addEventListener("mousedown", (e) => e.stopPropagation());
+      return del;
+    }
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const connectionsSvg = document.getElementById("connections-svg");
+    const workspace = document.getElementById("workspace");
+
+    let nodeCount = 0;
+    const connections = []; // { micNode, btnNode, line }
+    const btnNodes = [];
+
+    // Track which node is being dragged so we can update connection lines
+    const dragCallbacks = new Set();
+
+    function updateConnections() {
+      for (const conn of connections) {
+        const micRect = conn.micNode.getBoundingClientRect();
+        const btnRect = conn.btnNode.getBoundingClientRect();
+        conn.line.setAttribute("x1", micRect.right - 7);
+        conn.line.setAttribute("y1", micRect.top + micRect.height / 2);
+        conn.line.setAttribute("x2", btnRect.left);
+        conn.line.setAttribute("y2", btnRect.top + btnRect.height / 2);
+      }
+    }
+
+    function makeDraggable(node, excludeEl) {
+      let isDragging = false;
+      let offsetX, offsetY;
+
+      node.addEventListener("mousedown", (e) => {
+        if (e.target === excludeEl || e.target.classList.contains("output-port") || e.target.closest(".node-delete")) return;
+        isDragging = true;
+        offsetX = e.clientX - node.offsetLeft;
+        offsetY = e.clientY - node.offsetTop;
+        node.style.cursor = "grabbing";
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (!isDragging) return;
+        node.style.left = (e.clientX - offsetX) + "px";
+        node.style.top = (e.clientY - offsetY) + "px";
+        updateConnections();
+      });
+
+      document.addEventListener("mouseup", () => {
+        if (isDragging) {
+          isDragging = false;
+          node.style.cursor = "grab";
+        }
+      });
+    }
+
+    // --- Wire dragging state ---
+    let wireDragging = false;
+    let wireMicNode = null;
+    let dragLine = null;
+
+    document.addEventListener("mousemove", (e) => {
+      if (!wireDragging || !dragLine) return;
+      dragLine.setAttribute("x2", e.clientX);
+      dragLine.setAttribute("y2", e.clientY);
+
+      // Highlight btn nodes under cursor
+      for (const bn of btnNodes) {
+        const rect = bn.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          bn.classList.add("drop-highlight");
+        } else {
+          bn.classList.remove("drop-highlight");
+        }
+      }
+    });
+
+    document.addEventListener("mouseup", (e) => {
+      if (!wireDragging) return;
+
+      // Check if released over a btn node
+      for (const bn of btnNodes) {
+        const rect = bn.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          // Create permanent connection
+          const line = document.createElementNS(svgNS, "line");
+          connectionsSvg.appendChild(line);
+          connections.push({ micNode: wireMicNode, btnNode: bn, line });
+          updateConnections();
+          break;
+        }
+      }
+
+      // Clean up
+      for (const bn of btnNodes) bn.classList.remove("drop-highlight");
+      if (dragLine) {
+        dragLine.remove();
+        dragLine = null;
+      }
+      wireDragging = false;
+      wireMicNode = null;
+    });
+
+    // --- Spawn mic node ---
+    document.getElementById("mic-toolbar-btn").addEventListener("click", () => {
+      nodeCount++;
+      const node = document.createElement("div");
+      node.className = "mic-node";
+      node.style.left = (80 + nodeCount * 20) + "px";
+      node.style.top = (80 + nodeCount * 20) + "px";
+
+      const btn = document.createElement("div");
+      btn.className = "mic-node-btn up";
+      btn.innerHTML = micSvg;
+
+      const wordInput = document.createElement("input");
+      wordInput.type = "text";
+      wordInput.className = "mic-node-word";
+      wordInput.placeholder = "trigger word";
+      wordInput.addEventListener("mousedown", (e) => e.stopPropagation());
+
+      // Track this mic node's data
+      const micNodeData = { node, wordInput, recognizer: null, stream: null, audioContext: null, processor: null, source: null, listening: false };
+      micNodes.push(micNodeData);
+
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!micNodeData.listening) {
+          btn.classList.remove("up");
+          btn.classList.add("down");
+          micNodeData.listening = true;
+          await startListening(micNodeData);
+        } else {
+          btn.classList.remove("down");
+          btn.classList.add("up");
+          micNodeData.listening = false;
+          stopListening(micNodeData);
+        }
+      });
+
+      // Output port
+      const port = document.createElement("div");
+      port.className = "output-port";
+      port.addEventListener("mousedown", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        wireDragging = true;
+        wireMicNode = node;
+
+        const rect = port.getBoundingClientRect();
+        const startX = rect.left + rect.width / 2;
+        const startY = rect.top + rect.height / 2;
+
+        dragLine = document.createElementNS(svgNS, "line");
+        dragLine.classList.add("dragging-line");
+        dragLine.setAttribute("x1", startX);
+        dragLine.setAttribute("y1", startY);
+        dragLine.setAttribute("x2", startX);
+        dragLine.setAttribute("y2", startY);
+        connectionsSvg.appendChild(dragLine);
+      });
+
+      // Update delete to also stop listening and clean up micNodes
+      const delBtn = createDeleteBtn(node, false);
+      const originalClick = delBtn.onclick;
+      delBtn.addEventListener("click", () => {
+        stopListening(micNodeData);
+        const idx = micNodes.indexOf(micNodeData);
+        if (idx !== -1) micNodes.splice(idx, 1);
+      }, true);
+
+      node.appendChild(delBtn);
+      node.appendChild(btn);
+      node.appendChild(wordInput);
+      node.appendChild(port);
+      workspace.appendChild(node);
+
+      makeDraggable(node, wordInput);
+    });
+
+    // --- Spawn button node ---
+    document.getElementById("btn-toolbar-btn").addEventListener("click", () => {
+      nodeCount++;
+      const node = document.createElement("div");
+      node.className = "btn-node";
+      node.style.left = (200 + nodeCount * 20) + "px";
+      node.style.top = (80 + nodeCount * 20) + "px";
+
+      const toggle = document.createElement("div");
+      toggle.className = "btn-node-toggle up";
+      toggle.innerHTML = btnSvg;
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggle.classList.toggle("up");
+        toggle.classList.toggle("down");
+      });
+
+      const keyInput = document.createElement("input");
+      keyInput.type = "text";
+      keyInput.className = "btn-node-key";
+      keyInput.placeholder = "key to press";
+      keyInput.addEventListener("mousedown", (e) => e.stopPropagation());
+
+      node.appendChild(createDeleteBtn(node, true));
+      node.appendChild(toggle);
+      node.appendChild(keyInput);
+      workspace.appendChild(node);
+      btnNodes.push(node);
+
+      makeDraggable(node, keyInput);
+    });
+
+    // --- Toolbar buttons ---
+    document.getElementById("fullscreen-btn").addEventListener("click", () => {
+      window.electronAPI.toggleFullscreen();
+    });
+
+    document.getElementById("close-btn").addEventListener("click", () => {
+      window.electronAPI.closeApp();
+    });
+
+    // --- Debug panel toggle ---
+    const debugTab = document.getElementById("debug-tab");
+    const debugPanel = document.getElementById("debug-panel");
+    const debugHeader = document.getElementById("debug-panel-header");
+    let debugOpen = false;
+
+    debugTab.addEventListener("click", () => {
+      debugOpen = true;
+      debugPanel.classList.add("open");
+      debugTab.style.display = "none";
+    });
+
+    debugHeader.addEventListener("click", () => {
+      debugOpen = false;
+      debugPanel.classList.remove("open");
+      debugTab.style.display = "flex";
+    });
+
+    // --- Keyboard layout ---
+    const keyboardRows = [
+      [
+        { label: "Esc", code: "Escape", cls: "wide" },
+        { label: "F1", code: "F1" }, { label: "F2", code: "F2" },
+        { label: "F3", code: "F3" }, { label: "F4", code: "F4" },
+        { label: "F5", code: "F5" }, { label: "F6", code: "F6" },
+        { label: "F7", code: "F7" }, { label: "F8", code: "F8" },
+        { label: "F9", code: "F9" }, { label: "F10", code: "F10" },
+        { label: "F11", code: "F11" }, { label: "F12", code: "F12" },
+        { label: "Del", code: "Delete", cls: "wide" },
+      ],
+      [
+        { label: "`", code: "Backquote" },
+        { label: "1", code: "Digit1" }, { label: "2", code: "Digit2" },
+        { label: "3", code: "Digit3" }, { label: "4", code: "Digit4" },
+        { label: "5", code: "Digit5" }, { label: "6", code: "Digit6" },
+        { label: "7", code: "Digit7" }, { label: "8", code: "Digit8" },
+        { label: "9", code: "Digit9" }, { label: "0", code: "Digit0" },
+        { label: "-", code: "Minus" }, { label: "=", code: "Equal" },
+        { label: "Bksp", code: "Backspace", cls: "widest" },
+      ],
+      [
+        { label: "Tab", code: "Tab", cls: "wider" },
+        { label: "Q", code: "KeyQ" }, { label: "W", code: "KeyW" },
+        { label: "E", code: "KeyE" }, { label: "R", code: "KeyR" },
+        { label: "T", code: "KeyT" }, { label: "Y", code: "KeyY" },
+        { label: "U", code: "KeyU" }, { label: "I", code: "KeyI" },
+        { label: "O", code: "KeyO" }, { label: "P", code: "KeyP" },
+        { label: "[", code: "BracketLeft" }, { label: "]", code: "BracketRight" },
+        { label: "\\", code: "Backslash", cls: "wide" },
+      ],
+      [
+        { label: "Caps", code: "CapsLock", cls: "widest" },
+        { label: "A", code: "KeyA" }, { label: "S", code: "KeyS" },
+        { label: "D", code: "KeyD" }, { label: "F", code: "KeyF" },
+        { label: "G", code: "KeyG" }, { label: "H", code: "KeyH" },
+        { label: "J", code: "KeyJ" }, { label: "K", code: "KeyK" },
+        { label: "L", code: "KeyL" }, { label: ";", code: "Semicolon" },
+        { label: "'", code: "Quote" },
+        { label: "Enter", code: "Enter", cls: "widest" },
+      ],
+      [
+        { label: "Shift", code: "ShiftLeft", cls: "widest" },
+        { label: "Z", code: "KeyZ" }, { label: "X", code: "KeyX" },
+        { label: "C", code: "KeyC" }, { label: "V", code: "KeyV" },
+        { label: "B", code: "KeyB" }, { label: "N", code: "KeyN" },
+        { label: "M", code: "KeyM" }, { label: ",", code: "Comma" },
+        { label: ".", code: "Period" }, { label: "/", code: "Slash" },
+        { label: "Shift", code: "ShiftRight", cls: "widest" },
+      ],
+      [
+        { label: "Ctrl", code: "ControlLeft", cls: "wider" },
+        { label: "Win", code: "MetaLeft", cls: "wide" },
+        { label: "Alt", code: "AltLeft", cls: "wide" },
+        { label: "Space", code: "Space", cls: "space" },
+        { label: "Alt", code: "AltRight", cls: "wide" },
+        { label: "Win", code: "MetaRight", cls: "wide" },
+        { label: "Ctrl", code: "ControlRight", cls: "wider" },
+        { label: "\u2190", code: "ArrowLeft" },
+        { label: "\u2191", code: "ArrowUp" },
+        { label: "\u2193", code: "ArrowDown" },
+        { label: "\u2192", code: "ArrowRight" },
+      ],
+    ];
+
+    const keyElements = {};
+    const kbContainer = document.getElementById("keyboard-container");
+
+    for (const row of keyboardRows) {
+      const rowEl = document.createElement("div");
+      rowEl.className = "kb-row";
+      for (const key of row) {
+        const keyEl = document.createElement("div");
+        keyEl.className = "kb-key" + (key.cls ? " " + key.cls : "");
+        keyEl.textContent = key.label;
+        keyElements[key.code] = keyEl;
+        rowEl.appendChild(keyEl);
+      }
+      kbContainer.appendChild(rowEl);
+    }
+
+    // Highlight keys on press
+    const activeTimers = {};
+
+    document.addEventListener("keydown", (e) => {
+      const keyEl = keyElements[e.code];
+      if (!keyEl) return;
+
+      if (activeTimers[e.code]) {
+        clearTimeout(activeTimers[e.code]);
+      }
+
+      keyEl.classList.add("active");
+
+      activeTimers[e.code] = setTimeout(() => {
+        keyEl.classList.remove("active");
+        delete activeTimers[e.code];
+      }, 750);
+    });
+
+    // --- Save / Load ---
+    function generateXml() {
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<config>\n';
+
+      // Assign temp IDs
+      const allMicNodes = document.querySelectorAll(".mic-node");
+      const allBtnNodes = document.querySelectorAll(".btn-node");
+      const micIdMap = new Map();
+      const btnIdMap = new Map();
+
+      allMicNodes.forEach((node, i) => {
+        const id = "mic_" + i;
+        micIdMap.set(node, id);
+        const word = node.querySelector(".mic-node-word").value;
+        const btnEl = node.querySelector(".mic-node-btn");
+        const state = btnEl.classList.contains("down") ? "down" : "up";
+        const left = node.style.left;
+        const top = node.style.top;
+        xml += `  <mic-node id="${id}" x="${left}" y="${top}" state="${state}" word="${escapeXml(word)}"/>\n`;
+      });
+
+      allBtnNodes.forEach((node, i) => {
+        const id = "btn_" + i;
+        btnIdMap.set(node, id);
+        const key = node.querySelector(".btn-node-key").value;
+        const toggle = node.querySelector(".btn-node-toggle");
+        const state = toggle.classList.contains("down") ? "down" : "up";
+        const left = node.style.left;
+        const top = node.style.top;
+        xml += `  <btn-node id="${id}" x="${left}" y="${top}" state="${state}" key="${escapeXml(key)}"/>\n`;
+      });
+
+      for (const conn of connections) {
+        const fromId = micIdMap.get(conn.micNode);
+        const toId = btnIdMap.get(conn.btnNode);
+        if (fromId && toId) {
+          xml += `  <connection from="${fromId}" to="${toId}"/>\n`;
+        }
+      }
+
+      xml += '</config>';
+      return xml;
+    }
+
+    function escapeXml(str) {
+      return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function clearWorkspace() {
+      // Stop all listening
+      for (const md of micNodes) {
+        stopListening(md);
+      }
+      micNodes.length = 0;
+      btnNodes.length = 0;
+
+      // Remove connection lines
+      for (const conn of connections) {
+        conn.line.remove();
+      }
+      connections.length = 0;
+
+      // Remove all nodes from DOM
+      document.querySelectorAll(".mic-node, .btn-node").forEach(n => n.remove());
+      nodeCount = 0;
+    }
+
+    function loadFromXml(xmlStr) {
+      clearWorkspace();
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xmlStr, "text/xml");
+
+      const micNodeMap = {};
+      const btnNodeMap = {};
+
+      // Recreate mic nodes
+      for (const el of doc.querySelectorAll("mic-node")) {
+        const id = el.getAttribute("id");
+        const x = el.getAttribute("x");
+        const y = el.getAttribute("y");
+        const state = el.getAttribute("state");
+        const word = el.getAttribute("word");
+
+        // Simulate clicking the mic toolbar button logic
+        nodeCount++;
+        const node = document.createElement("div");
+        node.className = "mic-node";
+        node.style.left = x;
+        node.style.top = y;
+
+        const btn = document.createElement("div");
+        btn.className = "mic-node-btn " + (state === "down" ? "down" : "up");
+        btn.innerHTML = micSvg;
+
+        const wordInput = document.createElement("input");
+        wordInput.type = "text";
+        wordInput.className = "mic-node-word";
+        wordInput.placeholder = "trigger word";
+        wordInput.value = word;
+        wordInput.addEventListener("mousedown", (e) => e.stopPropagation());
+
+        const micNodeData = { node, wordInput, recognizer: null, stream: null, audioContext: null, processor: null, source: null, listening: false };
+        micNodes.push(micNodeData);
+
+        // If state was down, start listening
+        if (state === "down") {
+          micNodeData.listening = true;
+          startListening(micNodeData);
+        }
+
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          if (!micNodeData.listening) {
+            btn.classList.remove("up");
+            btn.classList.add("down");
+            micNodeData.listening = true;
+            await startListening(micNodeData);
+          } else {
+            btn.classList.remove("down");
+            btn.classList.add("up");
+            micNodeData.listening = false;
+            stopListening(micNodeData);
+          }
+        });
+
+        const port = document.createElement("div");
+        port.className = "output-port";
+        port.addEventListener("mousedown", (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          wireDragging = true;
+          wireMicNode = node;
+
+          const rect = port.getBoundingClientRect();
+          const startX = rect.left + rect.width / 2;
+          const startY = rect.top + rect.height / 2;
+
+          dragLine = document.createElementNS(svgNS, "line");
+          dragLine.classList.add("dragging-line");
+          dragLine.setAttribute("x1", startX);
+          dragLine.setAttribute("y1", startY);
+          dragLine.setAttribute("x2", startX);
+          dragLine.setAttribute("y2", startY);
+          connectionsSvg.appendChild(dragLine);
+        });
+
+        const delBtn = createDeleteBtn(node, false);
+        delBtn.addEventListener("click", () => {
+          stopListening(micNodeData);
+          const idx = micNodes.indexOf(micNodeData);
+          if (idx !== -1) micNodes.splice(idx, 1);
+        }, true);
+
+        node.appendChild(delBtn);
+        node.appendChild(btn);
+        node.appendChild(wordInput);
+        node.appendChild(port);
+        workspace.appendChild(node);
+        makeDraggable(node, wordInput);
+
+        micNodeMap[id] = node;
+      }
+
+      // Recreate btn nodes
+      for (const el of doc.querySelectorAll("btn-node")) {
+        const id = el.getAttribute("id");
+        const x = el.getAttribute("x");
+        const y = el.getAttribute("y");
+        const state = el.getAttribute("state");
+        const key = el.getAttribute("key");
+
+        nodeCount++;
+        const node = document.createElement("div");
+        node.className = "btn-node";
+        node.style.left = x;
+        node.style.top = y;
+
+        const toggle = document.createElement("div");
+        toggle.className = "btn-node-toggle " + (state === "down" ? "down" : "up");
+        toggle.innerHTML = btnSvg;
+        toggle.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggle.classList.toggle("up");
+          toggle.classList.toggle("down");
+        });
+
+        const keyInput = document.createElement("input");
+        keyInput.type = "text";
+        keyInput.className = "btn-node-key";
+        keyInput.placeholder = "key to press";
+        keyInput.value = key;
+        keyInput.addEventListener("mousedown", (e) => e.stopPropagation());
+
+        node.appendChild(createDeleteBtn(node, true));
+        node.appendChild(toggle);
+        node.appendChild(keyInput);
+        workspace.appendChild(node);
+        btnNodes.push(node);
+        makeDraggable(node, keyInput);
+
+        btnNodeMap[id] = node;
+      }
+
+      // Recreate connections
+      for (const el of doc.querySelectorAll("connection")) {
+        const fromId = el.getAttribute("from");
+        const toId = el.getAttribute("to");
+        const micNode = micNodeMap[fromId];
+        const btnNode = btnNodeMap[toId];
+        if (micNode && btnNode) {
+          const line = document.createElementNS(svgNS, "line");
+          connectionsSvg.appendChild(line);
+          connections.push({ micNode, btnNode, line });
+        }
+      }
+
+      updateConnections();
+    }
+
+    // Save modal
+    const saveModal = document.getElementById("save-modal");
+    const saveNameInput = document.getElementById("save-name-input");
+
+    document.getElementById("save-toolbar-btn").addEventListener("click", () => {
+      saveNameInput.value = "";
+      saveModal.classList.remove("hidden");
+      saveNameInput.focus();
+    });
+
+    document.getElementById("save-cancel-btn").addEventListener("click", () => {
+      saveModal.classList.add("hidden");
+    });
+
+    document.getElementById("save-confirm-btn").addEventListener("click", async () => {
+      const name = saveNameInput.value.trim();
+      if (!name) return;
+      const xml = generateXml();
+      await window.electronAPI.saveFile(name, xml);
+      saveModal.classList.add("hidden");
+    });
+
+    saveNameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("save-confirm-btn").click();
+      } else if (e.key === "Escape") {
+        saveModal.classList.add("hidden");
+      }
+    });
+
+    // Load
+    document.getElementById("load-toolbar-btn").addEventListener("click", async () => {
+      const xmlStr = await window.electronAPI.loadFile();
+      if (xmlStr) {
+        loadFromXml(xmlStr);
+      }
+    });
+  </script>
+</body>
+</html>
